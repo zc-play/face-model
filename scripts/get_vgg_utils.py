@@ -5,7 +5,7 @@ import random
 import shutil
 import numpy as np
 import face_recognition
-from keras_frcnn.config import DATA_ROOT_PATH
+from face_detect.config import DATA_ROOT_PATH
 
 
 dir_path = os.path.join(DATA_ROOT_PATH, 'vgg_face')

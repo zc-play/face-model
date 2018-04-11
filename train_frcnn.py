@@ -12,11 +12,11 @@ from keras import backend as K
 from keras.optimizers import Adam, SGD, RMSprop
 from keras.layers import Input
 from keras.models import Model
-from keras_frcnn import config, data_generators
-from keras_frcnn import losses as losses
-import keras_frcnn.roi_helpers as roi_helpers
+from face_detect import config, data_generators
+from face_detect import losses as losses
+import face_detect.roi_helpers as roi_helpers
 from keras.utils import generic_utils
-from keras_frcnn.simple_parser import get_data
+from face_detect.simple_parser import get_data
 
 sys.setrecursionlimit(40000)
 
@@ -45,12 +45,12 @@ C.num_rois = int(options.num_rois)
 
 if options.network == 'face-net':
     C.network = 'face-net'
-    from keras_frcnn import face_net as nn
+    from face_detect import face_net as nn
 elif options.network == 'vgg':
     C.network = 'vgg'
-    from keras_frcnn import vgg as nn
+    from face_detect import vgg as nn
 elif options.network == 'resnet50':
-    from keras_frcnn import resnet as nn
+    from face_detect import resnet as nn
     C.network = 'resnet50'
 else:
     print('Not a valid model')

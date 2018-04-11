@@ -5,7 +5,7 @@ import numpy as np
 import random
 import shutil
 import face_recognition
-from keras_frcnn.config import DATA_ROOT_PATH
+from face_detect.config import DATA_ROOT_PATH
 from multiprocessing import Pool
 
 face_classify_path = os.path.join(DATA_ROOT_PATH, 'face_classify')

@@ -1,6 +1,6 @@
 # coding: utf-8
 import os
-from keras_frcnn.config import DATA_ROOT_PATH, MODEL_ROOT_PATH, LOG_ROOT_PATH
+from face_detect.config import DATA_ROOT_PATH, MODEL_ROOT_PATH, LOG_ROOT_PATH
 from face_classifier import config
 
 
@@ -17,3 +17,4 @@ class Config(object):
         # pre_train form face classifier model
         self.pre_train_model_path = config.Config().face_model_path
         self.model_path = os.path.join(MODEL_ROOT_PATH, 'face-recognition', 'face-recognition.h5')
+        self.no_top_model_path = os.path.join(MODEL_ROOT_PATH, 'face-recognition', 'face-recognition_no_top.h5')

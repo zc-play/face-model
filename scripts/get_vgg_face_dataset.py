@@ -6,7 +6,7 @@ import gevent
 from urllib import request
 from gevent.queue import Queue
 from gevent import monkey
-from keras_frcnn.config import DATA_ROOT_PATH
+from face_detect.config import DATA_ROOT_PATH
 
 monkey.patch_all()
 

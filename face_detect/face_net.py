@@ -10,7 +10,7 @@ from __future__ import division
 
 from keras.layers import Flatten, Dense, Conv2D, Dropout, BatchNormalization
 from keras.layers import TimeDistributed
-from keras_frcnn.RoiPoolingConv import RoiPoolingConv
+from face_detect.RoiPoolingConv import RoiPoolingConv
 from face_classifier.config import Config
 from face_classifier.net import nn_base
 

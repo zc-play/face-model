@@ -14,13 +14,13 @@ cfg = Config()
 epochs = 2000
 
 
-def get_rec_model(pre_train_path, is_train=False):
+def get_rec_model(pre_train_path=None, is_train=False):
     img_input = Input(shape=(64, 64, 3))
     x = nn_base(img_input, trainable=True)
     # decrease parameters numbers
     x = Conv2D(4096, (1, 1), activation='relu')(x)
     x = AveragePooling2D((4, 4), name='avg_pool')(x)
-    x = Flatten(name='flatten')(x)
+    x = Flatten(name='encoding_out')(x)
     # dense output
     x = Dense(cfg.class_size, activation='softmax', name='fc2622')(x)
     model = Model(inputs=img_input, outputs=x)
@@ -29,7 +29,7 @@ def get_rec_model(pre_train_path, is_train=False):
 
     optimizer = Adam(lr=1e-5)
     model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
-    if is_train:
+    if is_train and pre_train_path:
         model.load_weights(pre_train_path, by_name=True)
     return model
 
@@ -54,7 +54,7 @@ def train(train_path, val_path):
     train_generator = train_datagen.flow_from_directory(
         train_path,
         target_size=(64, 64),
-        batch_size=10,
+        batch_size=32,
         seed=5
     )
 
@@ -68,14 +68,14 @@ def train(train_path, val_path):
         seed=5
     )
 
-    model_checkpoint = ModelCheckpoint(cfg.model_path, save_best_only=True)
+    model_checkpoint = ModelCheckpoint(cfg.model_path, save_best_only=False)
     reduce_lr = ReduceLROnPlateau(patience=1)
     board = TensorBoard(cfg.train_log)
     hist = History()
 
     model.fit_generator(
         train_generator,
-        steps_per_epoch=2,
+        steps_per_epoch=20,
         epochs=epochs,
         workers=8,
         use_multiprocessing=False,
@@ -86,6 +86,26 @@ def train(train_path, val_path):
     print('train completed!!!')
 
 
+def save_model_no_top_weight():
+    model = get_rec_model()
+    model.load_weights(cfg.model_path)
+    out = model.get_layer('encoding_out').output
+    encoding_model = Model(model.input, out)
+    # encoding_model.compile('adam')
+    encoding_model.save(cfg.no_top_model_path)
+
+
+def get_model_no_top():
+    model = get_rec_model()
+    model.load_weights(cfg.model_path)
+    out = model.get_layer('encoding_out').output
+    encoding_model = Model(model.input, out)
+    encoding_model.compile('adam')
+    encoding_model.load_weights(cfg.no_top_model_path)
+    return encoding_model
+
+
 if __name__ == '__main__':
     # env PYTHONPATH='..' python rec_net.py
     train(cfg.train_path, cfg.dev_path)
+    # save_model_no_top_weight()

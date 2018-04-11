@@ -7,8 +7,8 @@ import logging
 import numpy as np
 from keras import Input, Model
 from keras import backend as K
-from keras_frcnn import face_net as nn
-from keras_frcnn import roi_helpers
+from face_detect import face_net as nn
+from face_detect import roi_helpers
 
 
 class FaceDetect(object):
