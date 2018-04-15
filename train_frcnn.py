@@ -18,6 +18,7 @@ import face_detect.roi_helpers as roi_helpers
 from keras.utils import generic_utils
 from face_detect.simple_parser import get_data
 
+random.seed(7)
 sys.setrecursionlimit(40000)
 
 parser = OptionParser()

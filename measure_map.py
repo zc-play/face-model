@@ -1,18 +1,21 @@
 import os
 import cv2
+import random
 import numpy as np
 import sys
 import pickle
 from optparse import OptionParser
 import time
 from face_detect import config
-import face_detect.resnet as nn
+import face_detect.face_net as nn
 from keras import backend as K
 from keras.layers import Input
 from keras.models import Model
 from face_detect import roi_helpers
 from face_detect import data_generators
 from sklearn.metrics import average_precision_score
+
+random.seed(7)
 
 
 def get_map(pred, gt, f):
@@ -62,7 +65,7 @@ def get_map(pred, gt, f):
         T[pred_class].append(int(found_match))
 
     for gt_box in gt:
-        if not gt_box['bbox_matched'] and not gt_box['difficult']:
+        if not gt_box['bbox_matched']:  # and not gt_box['difficult']:
             if gt_box['class'] not in P:
                 P[gt_box['class']] = []
                 T[gt_box['class']] = []
@@ -80,12 +83,12 @@ parser = OptionParser()
 
 parser.add_option("-p", "--path", dest="test_path", help="Path to test data.")
 parser.add_option("-n", "--num_rois", dest="num_rois",
-                help="Number of ROIs per iteration. Higher means more memory use.", default=32)
+                  help="Number of ROIs per iteration. Higher means more memory use.", default=32)
 parser.add_option("--config_filename", dest="config_filename", help=
-                "Location to read the metadata related to the training (generated when training).",
-                default="config.pickle")
+                  "Location to read the metadata related to the training (generated when training).",
+                  default="config.pickle")
 parser.add_option("-o", "--parser", dest="parser", help="Parser to use. One of simple or pascal_voc",
-                default="pascal_voc"),
+                  default="simple"),
 
 (options, args) = parser.parse_args()
 
@@ -102,7 +105,7 @@ else:
 
 config_output_filename = options.config_filename
 
-with open(config_output_filename, 'r') as f_in:
+with open(config_output_filename, 'rb') as f_in:
     C = pickle.load(f_in)
 
 # turn off any data augmentation at test time
@@ -144,17 +147,26 @@ class_mapping = C.class_mapping
 if 'bg' not in class_mapping:
     class_mapping['bg'] = len(class_mapping)
 
-class_mapping = {v: k for k, v in class_mapping.iteritems()}
+class_mapping = {v: k for k, v in class_mapping.items()}
 print(class_mapping)
 class_to_color = {class_mapping[v]: np.random.randint(0, 255, 3) for v in class_mapping}
 C.num_rois = int(options.num_rois)
 
+if C.network == 'face-net':
+    num_features = 512
+elif C.network == 'resnet50':
+    num_features = 1024
+elif C.network == 'vgg':
+    num_features = 512
+else:
+    raise Exception('C.network not support')
+
 if K.image_dim_ordering() == 'th':
     input_shape_img = (3, None, None)
-    input_shape_features = (1024, None, None)
+    input_shape_features = (num_features, None, None)
 else:
     input_shape_img = (None, None, 3)
-    input_shape_features = (None, None, 1024)
+    input_shape_features = (None, None, num_features)
 
 
 img_input = Input(shape=input_shape_img)
@@ -175,6 +187,7 @@ model_classifier_only = Model([feature_map_input, roi_input], classifier)
 
 model_classifier = Model([feature_map_input, roi_input], classifier)
 
+print('\nLoading weights: {}'.format(C.model_path))
 model_rpn.load_weights(C.model_path, by_name=True)
 model_classifier.load_weights(C.model_path, by_name=True)
 
@@ -187,13 +200,15 @@ test_imgs = [s for s in all_imgs if s['imageset'] == 'test']
 
 T = {}
 P = {}
-for idx, img_data in enumerate(test_imgs):
-    print('{}/{}'.format(idx,len(test_imgs)))
-    st = time.time()
-    filepath = img_data['filepath']
 
+all_ap, all_elapsed_time, cnt = 0, 0, 0
+length_img = len(test_imgs)
+
+for idx, img_data in enumerate(test_imgs):
+    filepath = img_data['filepath']
     img = cv2.imread(filepath)
 
+    st = time.time()
     X, fx, fy = format_img(img, C)
 
     if K.image_dim_ordering() == 'tf':
@@ -265,8 +280,7 @@ for idx, img_data in enumerate(test_imgs):
             det = {'x1': x1, 'x2': x2, 'y1': y1, 'y2': y2, 'class': key, 'prob': new_probs[jk]}
             all_dets.append(det)
 
-
-    print('Elapsed time = {}'.format(time.time() - st))
+    # print('Elapsed time = {}'.format(time.time() - st))
     t, p = get_map(all_dets, img_data['bboxes'], (fx, fy))
     for key in t.keys():
         if key not in T:
@@ -274,11 +288,17 @@ for idx, img_data in enumerate(test_imgs):
             P[key] = []
         T[key].extend(t[key])
         P[key].extend(p[key])
-    all_aps = []
-    for key in T.keys():
-        ap = average_precision_score(T[key], P[key])
-        print('{} AP: {}'.format(key, ap))
-        all_aps.append(ap)
-    print('mAP = {}'.format(np.mean(np.array(all_aps))))
-    #print(T)
-    #print(P)
+    face_ap = average_precision_score(T['face'], P['face'])
+    elapsed_time = time.time() - st
+    print('{}/{},\tAP:{},\tElapsed Time:{}'.format(idx, length_img, face_ap, elapsed_time), flush=True)
+
+    all_ap += face_ap
+    all_elapsed_time += elapsed_time
+    if idx % 100 == 0:
+        print('{}/{},\tmean AP:{},\tmean Elapsed Time:{}'.format(idx,
+                                                                 length_img,
+                                                                 all_ap / (idx + 1),
+                                                                 all_elapsed_time / (idx + 1), ), flush=True)
+print('{},\tmean AP:{},\tmean Elapsed Time:{}'.format(length_img,
+                                                      all_ap / length_img,
+                                                      all_elapsed_time / length_img), flush=True)
